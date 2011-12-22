@@ -34,8 +34,9 @@
 #include <i2c.h>
 #include <asm/mach-types.h>
 #include "am3517evm.h"
+#include "product_id.h"
 
-
+ 
 #define AM3517_IP_SW_RESET	0x48002598
 #define CPGMACSS_SW_RST		(1 << 1)
 #define CONTROL_EFUSE_EMAC_LSB  0x48002380
@@ -73,6 +74,8 @@ int misc_init_r(void)
 #ifdef CONFIG_DRIVER_OMAP34XX_I2C
 	i2c_init(CONFIG_SYS_I2C_SPEED, CONFIG_SYS_I2C_SLAVE);
 #endif
+
+	fetch_production_data();
 
 	dieid_num_r();
 
@@ -148,6 +151,26 @@ extern void davinci_eth_set_mac_addr(const u_int8_t *addr);
 #endif
 	return 0;
  }
+
+
+/******************************************************************************
+ * Routine: late_board_init
+ * Description: Late hardware init.
+ *****************************************************************************/
+int board_late_init(void)
+{
+	unsigned char enetaddr[6];
+
+	dump_production_data(); // Dump production data
+	/* On beta boards, LAN ethernet address is
+	 * stored in MAC[1] in product id data */
+	board_get_nth_enetaddr(enetaddr, 0, 0);
+#ifdef CONFIG_HAS_ETH1
+	// Fetch the ethaddr of the WiFi
+	board_get_nth_enetaddr(enetaddr, 1, 1);
+#endif
+	return 0;
+}
 
 
 /*

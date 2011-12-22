@@ -307,8 +307,17 @@ void abort(void)
  *****************************************************************************/
 static int do_switch_ecc(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc > 2)
 		goto usage;
+
+	if (argc == 1) {
+		int hw_ecc = omap_nand_ecc_is_hw();
+		if (hw_ecc < 0)
+			return 1;
+		printf("NAND ECC algorithm: %s\n", hw_ecc ? "hw" : "sw");
+		return 0;
+	}
+
 	if (strncmp(argv[1], "hw", 2) == 0)
 		omap_nand_switch_ecc(NAND_ECC_HW);
 	else if (strncmp(argv[1], "sw", 2) == 0)

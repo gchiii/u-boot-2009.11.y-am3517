@@ -313,6 +313,32 @@ void omap_nand_switch_ecc(nand_ecc_modes_t mode)
 }
 
 /*
+ * omap_nand_ecc_is_hw - return which mode the NAND ECC is in
+ *
+ * @return - 1 -h/w ecc, 0 -s/w ecc
+ *
+ */
+
+int omap_nand_ecc_is_hw(void)
+{
+	struct nand_chip *nand;
+	struct mtd_info *mtd;
+
+	if (nand_curr_device < 0 ||
+	    nand_curr_device >= CONFIG_SYS_MAX_NAND_DEVICE ||
+	    !nand_info[nand_curr_device].name) {
+		printf("Error: no devices available\n");
+		return -1;
+	}
+
+	mtd = &nand_info[nand_curr_device];
+	nand = mtd->priv;
+	if (nand->ecc.mode == NAND_ECC_HW)
+		return 1;
+	return 0;
+}
+
+/*
  * Board-specific NAND initialization. The following members of the
  * argument are board-specific:
  * - IO_ADDR_R: address to read the 8 I/O lines of the flash device

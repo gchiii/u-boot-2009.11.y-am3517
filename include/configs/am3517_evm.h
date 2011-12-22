@@ -51,6 +51,8 @@
 #undef CONFIG_USE_IRQ				/* no support for IRQs */
 #define CONFIG_MISC_INIT_R
 
+#define BOARD_LATE_INIT
+
 #define CONFIG_CMDLINE_TAG		1	/* enable passing of ATAGs */
 #define CONFIG_SETUP_MEMORY_TAGS	1
 #define CONFIG_INITRD_TAG		1
@@ -139,13 +141,14 @@
 /* commands to include */
 #include <config_cmd_default.h>
 
-#define CONFIG_CMD_EXT2		/* EXT2 Support			*/
-#define CONFIG_CMD_FAT		/* FAT support			*/
-#define CONFIG_CMD_JFFS2	/* JFFS2 Support		*/
+#define CONFIG_CMD_EXT2			/* EXT2 Support			*/
+#define CONFIG_CMD_FAT			/* FAT support			*/
+#define CONFIG_CMD_JFFS2		/* JFFS2 Support		*/
 
-#define CONFIG_CMD_I2C		/* I2C serial bus support	*/
-#define CONFIG_CMD_MMC		/* MMC support			*/
-#define CONFIG_CMD_NAND		/* NAND support			*/
+#define CONFIG_CMD_I2C			/* I2C serial bus support	*/
+#define CONFIG_CMD_MMC			/* MMC support			*/
+#define CONFIG_CMD_NAND			/* NAND support			*/
+#define CONFIG_CMD_NAND_LOCK_UNLOCK	/* NAND support			*/
 #define CONFIG_CMD_DHCP
 #define CONFIG_CMD_PING
 
@@ -191,16 +194,23 @@
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"loadaddr=0x82000000\0" \
 	"console=ttyS2,115200n8\0" \
+	"kernelimage=uImage\0" \
+	"u-bootimage=u-boot.bin\0" \
+	"ramfsimage=rootfs.ext2.gz.uboot\0" \
+	"ramfsaddr=0x83000000\0" \
+	"nfsserver=192.168.3.5\0" \
+	"nfspath=/opt/nfs-exports/ltib-am3517evm\0" \
+	"nfsoptions=,wsize=1500,rsize=1500\0" \
 	"mmcargs=setenv bootargs console=${console} " \
 		"root=/dev/mmcblk0p2 rw " \
-		"rootfstype=ext3 rootwait\0" \
+		"rootfstype=ext3 rootwait ${etharg} ${otherbootargs}\0" \
 	"nandargs=setenv bootargs console=${console} " \
 		"root=/dev/mtdblock4 rw " \
-		"rootfstype=jffs2\0" \
+		"rootfstype=jffs2 ${etharg} ${otherbootargs}\0" \
 	"loadbootscript=fatload mmc 0 ${loadaddr} boot.scr\0" \
 	"bootscript=echo Running bootscript from mmc ...; " \
 		"source ${loadaddr}\0" \
-	"loaduimage=fatload mmc 0 ${loadaddr} uImage\0" \
+	"loaduimage=fatload mmc 0 ${loadaddr} ${kernelimage}\0" \
 	"mmcboot=echo Booting from mmc ...; " \
 		"run mmcargs; " \
 		"bootm ${loadaddr}\0" \
@@ -208,19 +218,50 @@
 		"run nandargs; " \
 		"nand read ${loadaddr} 280000 400000; " \
 		"bootm ${loadaddr}\0" \
-
-#define CONFIG_BOOTCOMMAND \
-	"if mmc init; then " \
+	"nfsargs=setenv bootargs console=${console} " \
+		"root=/dev/nfs rw " \
+		"nfsroot=${nfsserver}:${nfspath}${nfsoptions} " \
+		"ip=dhcp ${etharg} ${otherbootargs}\0" \
+	"nfsboot=echo Booting from ethernet ...; " \
+		"tftpboot ${loadaddr} ${kernelimage}; " \
+		"run nfsargs; "\
+		"bootm ${loadaddr}\0" \
+	"ramargs=setenv bootargs console=${console} " \
+		"root=/dev/ram rw ${etharg} ${otherbootargs}\0" \
+	"loadramimages=tftp ${loadaddr} ${kernelimage}; " \
+		"tftp ${ramfsaddr} ${ramfsimage}; \0"\
+	"ramboot=echo Booting from ram ...; "	\
+		"run loadramimages; "\
+		"run ramargs; "\
+		"bootm ${loadaddr} ${ramfsaddr}\0" \
+	"reflash-uboot=mw.b ${loadaddr} 0xFF 0x1C0000; " \
+		"tftp ${loadaddr} ${u-bootimage}; " \
+		"nand erase 0x80000 0x1C0000; " \
+		"nandecc sw; " \
+		"nand write.i ${loadaddr} 0x80000 0x1c0000\0" \
+	"multiboot=if mmc init; then " \
 		"if run loadbootscript; then " \
-			"run bootscript; " \
+				"run bootscript; " \
 		"else " \
 			"if run loaduimage; then " \
 				"run mmcboot; " \
 			"else run nandboot; " \
 			"fi; " \
 		"fi; " \
-	"else run nandboot; fi"
+		"else run nandboot; fi\0" \
 
+#define CONFIG_BOOTCOMMAND \
+	"run multiboot"
+
+/* Our PREBOOT is to sete the etharg for the kernel (until we
+   figure out a fix for the kernel to get its MAC address */
+
+#define CONFIG_PREBOOT \
+	"setenv preboot; " \
+	"setenv ethargs eth=${ethaddr}; " \
+	"saveenv;"
+
+#define CONFIG_CMDLINE_EDITING	1
 #define CONFIG_AUTO_COMPLETE	1
 /*
  * Miscellaneous configurable options
